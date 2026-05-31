@@ -1,10 +1,6 @@
 <p align="center">
   <br>
-  <picture>
-    <source media="(prefers-color-scheme: dark)">
-    <img width="120" alt="Stand Up Reminder" src="https://img.icons8.com/fluency/240/person-standing.png">
-  </picture>
-  <h1 align="center">Stand Up Reminder</h1>
+  <h1 align="center">🧑‍💻 Stand Up Reminder</h1>
   <p align="center">
     久坐提醒器 &nbsp;·&nbsp; 你的桌面健康伙伴
     <br>
