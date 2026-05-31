@@ -63,99 +63,53 @@ Mac 版需要替换几个 Windows 专属组件（`winsound` → `afplay`、`GetL
 
 ---
 
-## 🚀 给小白看的安装指南
+## 🚀 安装 & 启动
 
-**适用于：从未用过命令行的 Windows 用户。**
-
-### 第 1 步：安装 Python
-
-1. 打开浏览器，访问 [python.org](https://www.python.org/downloads/)
-2. 点击黄色大按钮 **Download Python 3.x.x**
-3. 运行下载的文件
-4. ⚠️ **关键一步**：勾选底部的 **「Add Python to PATH」**，再点 Install Now
-5. 等安装完成，点 Close
-
-验证安装：按 `Win + R`，输入 `cmd` 回车，在黑色窗口里输入：
+**前提：** 已安装 Python 3.10 或更高版本。
 
 ```cmd
-python --version
-```
+:: 1. 下载项目
+git clone https://github.com/rzT1an/standup-reminder.git
+cd standup-reminder
 
-如果显示 `Python 3.10.x` 或更高版本，说明装好了。
-
-### 第 2 步：下载本项目
-
-点击页面上方绿色的 **Code ▾** → **Download ZIP**，解压到 `D:\standing_up_reminding`。
-
-### 第 3 步：安装依赖
-
-按 `Win + R`，输入 `cmd` 回车，在黑色窗口里**依次**输入：
-
-```cmd
-cd /d D:\standing_up_reminding
+:: 2. 安装依赖
 pip install -r requirements.txt
+
+:: 3. 启动（无窗口模式）
+pythonw.exe standup_reminder.py
 ```
 
-等它跑完（一分钟左右），没有报红字就成功了。
-
-### 第 4 步：启动
-
-**双击**文件夹里的 `启动.vbs`。
-
-右下角出现一个坐椅子的绿色小人、系统托盘出现图标——启动成功！🎉
-
-### 第 5 步（可选）：设为开机自启
-
-1. 按 `Win + R`，输入 `shell:startup` 回车
-2. 在弹出的文件夹里**右键** → **新建** → **快捷方式**
-3. 位置填 `D:\standing_up_reminding\启动.vbs`，下一步，完成
-4. 下次开机自动运行
+或直接**双击 `启动.vbs`**。系统托盘出现图标、右下角出现桌宠即成功。
 
 ---
 
-## ⚙️ 怎么改设置
+## ⚙️ 配置
 
-用记事本打开 `standup_reminder.py`，找到最前面的这段，改数字就行：
+编辑 `standup_reminder.py` 顶部：
 
 ```python
-INTERVAL_MINUTES = 30            # 多久提醒一次（分钟）
-SNOOZE_MINUTES   = 5             # 「稍后」推迟多久（分钟）
-POSTURE_REMINDER_MINUTES = 5     # 坐姿提醒间隔（分钟）
-MAX_SNOOZE_COUNT = 2             # 最多稍后几次
+INTERVAL_MINUTES = 30            # 提醒间隔（分）
+SNOOZE_MINUTES   = 5             # 稍后延迟（分）
+POSTURE_REMINDER_MINUTES = 5     # 坐姿提醒间隔（分）
+MAX_SNOOZE_COUNT = 2             # 最大稍后次数
 FORCED_REST_SECONDS = 60         # 强制休息倒计时（秒）
-IDLE_PAUSE_MINUTES = 2           # 离开多久暂停计时（分钟）
-IDLE_RESET_MINUTES = 15          # 离开多久清零重算（分钟）
+IDLE_PAUSE_MINUTES = 2           # 空闲冻结阈值（分）
+IDLE_RESET_MINUTES = 15          # 空闲清零阈值（分）
 ```
 
-改完保存，右键托盘 →退出 → 重新双击 `启动.vbs` 生效。
+保存后右键托盘 → 退出 → 重新双击 `启动.vbs` 生效。
 
 ---
 
-## 怎么换铃声和音效
+## 🎵 铃声 & 音效
 
-1. 把你喜欢的 `.wav` 文件放进 `assets/sounds/`
-2. **右键托盘图标** → 铃声 → 选你刚放进去的
-3. 系统会自动试听 2 秒
-
-同理，把 `.wav` 放进 `assets/effects/`，在**互动音效**菜单里切换。
+把 `.wav` 文件放入 `assets/sounds/` 或 `assets/effects/`，右键托盘菜单即可切换。
 
 ---
 
-## 📁 文件夹说明
+## 📌 开机自启
 
-```
-D:\standing_up_reminding\
-│
-├── 启动.vbs              ← 双击这个启动程序
-├── standup_reminder.py   ← 主程序（用记事本打开可改设置）
-├── qt_popup_demo.py      ← 弹窗模块
-├── requirements.txt      ← 依赖清单（给 pip 安装用）
-│
-└── assets\
-    ├── pet\              ← 桌宠的 7 个动作图片
-    ├── sounds\           ← 放铃声 .wav 文件的文件夹
-    └── effects\          ← 放戳宠音效 .wav 文件的文件夹
-```
+`Win + R` → 输入 `shell:startup` → 新建快捷方式 → 指向 `启动.vbs`。
 
 ---
 
