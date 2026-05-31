@@ -1,6 +1,6 @@
 <p align="center">
   <br>
-  <h1 align="center">🧑‍💻 Stand Up Reminder</h1>
+  <h1 align="center"><img width="96" src="assets/pet/stand_stretch_up.png"> Stand Up Reminder</h1>
   <p align="center">
     久坐提醒器 &nbsp;·&nbsp; 你的桌面健康伙伴
     <br>
