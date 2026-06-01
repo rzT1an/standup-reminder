@@ -90,6 +90,57 @@ def is_workstation_locked():
         return False
 
 
+def is_fullscreen_active():
+    """检测前台窗口是否处于真正的全屏状态（无边框视频/游戏/PPT）。
+    只检查尺寸会误判最大化的浏览器窗口，所以还要看窗口风格。"""
+    import ctypes
+
+    try:
+        hwnd = ctypes.windll.user32.GetForegroundWindow()
+        if not hwnd:
+            return False
+
+        class RECT(ctypes.Structure):
+            _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
+                        ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+        rect = RECT()
+        ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect))
+        w, h = rect.right - rect.left, rect.bottom - rect.top
+        if w < 400 or h < 300:
+            return False
+
+        # 获取显示器尺寸
+        monitor = ctypes.windll.user32.MonitorFromWindow(hwnd, 2)
+        class MONITORINFO(ctypes.Structure):
+            _fields_ = [("cbSize", ctypes.c_uint),
+                        ("rcMonitor", RECT), ("rcWork", RECT),
+                        ("dwFlags", ctypes.c_uint)]
+        mi = MONITORINFO()
+        mi.cbSize = ctypes.sizeof(MONITORINFO)
+        ctypes.windll.user32.GetMonitorInfoW(monitor, ctypes.byref(mi))
+        mw = mi.rcMonitor.right - mi.rcMonitor.left
+        mh = mi.rcMonitor.bottom - mi.rcMonitor.top
+
+        if w < mw or h < mh:
+            return False
+
+        # 精准判定：真正全屏的窗口通常是 WS_POPUP 且无标题栏/无边框
+        GWL_STYLE = -16
+        WS_CAPTION = 0x00C00000
+        WS_THICKFRAME = 0x00040000
+        style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_STYLE)
+        # 无边框且覆盖全屏 = 全屏视频/游戏/PPT
+        has_caption_or_border = bool(style & (WS_CAPTION | WS_THICKFRAME))
+        if not has_caption_or_border:
+            return True
+
+        # 有边框但尺寸基本覆盖全屏（允许 8px 误差，某些播放器边框很细）
+        return w >= mw - 8 and h >= mh - 8
+    except Exception:
+        return False
+
+
 def lock_workstation():
     """Lock Windows when the optional strict snooze policy is enabled."""
     if sys.platform != "win32":
@@ -2408,11 +2459,16 @@ class DesktopPet:
         self._visible_bbox = (0, 0, self.w, self.h)
         self._qt_hint_anchor_path = None
         self._qt_hint_until = 0
+        self._popup_anchor_local = None
+        self._pet_image_item = None
+        self._pet_photo = None
+        self._fullscreen_hits = 0
+        self._hidden_for_fullscreen = False
 
         self.window = tk.Toplevel(root)
         self.window.title("站立提醒桌宠")
         self.window.overrideredirect(True)
-        self.window.attributes("-topmost", True)
+        self.window.attributes("-topmost", False)  # [CLAUDE] 不置顶，被应用窗口覆盖
         self.window.configure(bg=self.transparent)
         try:
             self.window.attributes("-transparentcolor", self.transparent)
@@ -2432,6 +2488,7 @@ class DesktopPet:
             bd=0,
         )
         self.canvas.pack(fill="both", expand=True)
+        self._pet_image_item = self.canvas.create_image(0, 0, anchor="nw")
         self.canvas.bind("<ButtonPress-1>", self._start_move)
         self.canvas.bind("<B1-Motion>", self._do_move)
         self.canvas.bind("<ButtonRelease-1>", self._end_click)
@@ -2439,7 +2496,7 @@ class DesktopPet:
 
         self.hint_window = tk.Toplevel(root)
         self.hint_window.overrideredirect(True)
-        self.hint_window.attributes("-topmost", True)
+        self.hint_window.attributes("-topmost", False)  # [CLAUDE] 跟随桌宠，不独立置顶
         self.hint_window.configure(bg=self.hint_surface)
 
         self.hint_canvas = tk.Canvas(
@@ -2466,15 +2523,23 @@ class DesktopPet:
 
     def _qt_anchor(self, _kind="popup"):
         self.window.update_idletasks()
-        center_x, head_top_y = self._current_head_anchor()
-        anchor_y = head_top_y + self._scale(42)
+        if _kind == "popup" and self._popup_anchor_local:
+            center_x, anchor_y = self._popup_anchor_local
+        else:
+            center_x, head_top_y = self._current_head_anchor()
+            if _kind == "hint":
+                anchor_y = head_top_y - self._scale(4)
+            else:
+                anchor_y = head_top_y - self._scale(8)
         return (
             self.window.winfo_x() + center_x,
             self.window.winfo_y() + anchor_y,
         )
 
     def _current_head_anchor(self):
-        sprite_name = self._sprite_name()
+        return self._head_anchor_for_sprite(self._sprite_name())
+
+    def _head_anchor_for_sprite(self, sprite_name):
         try:
             sprite = self._load_sprite(sprite_name, 0)
             scale = min(self.w / sprite.width, self.h / sprite.height)
@@ -2490,6 +2555,20 @@ class DesktopPet:
         except Exception:
             x1, y1, x2, _y2 = self._current_visible_bbox()
             return x1 + (x2 - x1) / 2, y1
+
+    def _stable_stand_popup_anchor(self):
+        anchors = []
+        for sprite_name in ("stand_getting_up", "stand_stretch_up", "stand_neck"):
+            try:
+                anchors.append(self._head_anchor_for_sprite(sprite_name))
+            except Exception:
+                pass
+        if not anchors:
+            center_x, head_top_y = self._current_head_anchor()
+            return center_x, head_top_y - self._scale(8)
+        center_x = sum(x for x, _y in anchors) / len(anchors)
+        head_top_y = min(y for _x, y in anchors)
+        return center_x, head_top_y - self._scale(8)
 
     def _current_visible_bbox(self):
         try:
@@ -2613,21 +2692,29 @@ class DesktopPet:
         except Exception:
             pass
 
+    def _paint_pet_image(self, image):
+        from PIL import ImageTk
+
+        photo = ImageTk.PhotoImage(image)
+        self._pet_photo = photo
+        if self._pet_image_item is None:
+            self._pet_image_item = self.canvas.create_image(0, 0, image=photo, anchor="nw")
+        else:
+            self.canvas.itemconfigure(self._pet_image_item, image=photo)
+            try:
+                self.canvas.tag_lower(self._pet_image_item)
+            except tk.TclError:
+                pass
+
     def _redraw_now(self):
         try:
-            from PIL import ImageTk
-
             self._transition_left = 0
             cur_name = self._sprite_name()
             cur_img = self._render_sprite()
             self._last_sprite_name = cur_name
             self._last_sprite_img = cur_img
 
-            self.canvas.delete("all")
-            self.canvas._image_refs = []
-            photo = ImageTk.PhotoImage(cur_img)
-            self.canvas._image_refs.append(photo)
-            self.canvas.create_image(0, 0, image=photo, anchor="nw")
+            self._paint_pet_image(cur_img)
             self._draw_message()
             self.canvas.update_idletasks()
         except Exception:
@@ -2636,6 +2723,7 @@ class DesktopPet:
     def posture_reminder(self):
         self.mode = "upright"
         self.auto_revert_at = time.time() + 8
+        self._popup_anchor_local = None
         self._redraw_now()
         self.say("腰挺直一点。", 8)
 
@@ -2644,11 +2732,13 @@ class DesktopPet:
         self.mode = "stretch"
         self._mode_start_frame = self.frame
         self.auto_revert_at = 0
+        self._popup_anchor_local = self._stable_stand_popup_anchor()
         self._redraw_now()
 
     def snoozed(self, count):
         self.anger_level = 0
         self.mode = "idle"
+        self._popup_anchor_local = None
         self.message = ""
         self.message_until = 0
 
@@ -2656,6 +2746,7 @@ class DesktopPet:
         self.mode = "idle"
         self.anger_level = 0
         self.auto_revert_at = 0
+        self._popup_anchor_local = None
         self.message = ""
         self.message_until = 0
 
@@ -2913,11 +3004,36 @@ class DesktopPet:
         except tk.TclError:
             pass
 
-    # [CLAUDE] 重写 _animate：加入交叉淡入淡出，精灵切换不再硬切
+    # [CLAUDE] 重写 _animate：交叉淡入淡出 + 全屏时自动隐藏
     def _animate(self):
-        from PIL import Image, ImageTk
+        from PIL import Image
 
         now = time.time()
+
+        # [CLAUDE] 全屏检测：视频/游戏/PPT 时隐藏桌宠
+        fullscreen_active = is_fullscreen_active()
+        if fullscreen_active:
+            self._fullscreen_hits += 1
+        else:
+            self._fullscreen_hits = 0
+
+        # 连续命中 6 次（约 480ms）才判定为真全屏，避免瞬间误判
+        if fullscreen_active and self._fullscreen_hits >= 6:
+            try:
+                self.window.withdraw()
+                self.hint_window.withdraw()
+                self._hidden_for_fullscreen = True
+            except tk.TclError:
+                pass
+            self.root.after(80, self._animate)  # [CLAUDE] 快速轮询，几乎无感
+            return
+        elif not fullscreen_active and self._hidden_for_fullscreen:
+            try:
+                self.window.deiconify()
+                self._hidden_for_fullscreen = False
+            except tk.TclError:
+                pass
+
         if self.auto_revert_at and now >= self.auto_revert_at:
             self.mode = "idle"
             self.auto_revert_at = 0
@@ -2940,11 +3056,7 @@ class DesktopPet:
         self._last_sprite_name = cur_name
         self._last_sprite_img = cur_img
 
-        self.canvas.delete("all")
-        self.canvas._image_refs = []
-        photo = ImageTk.PhotoImage(display_img)
-        self.canvas._image_refs.append(photo)
-        self.canvas.create_image(0, 0, image=photo, anchor="nw")
+        self._paint_pet_image(display_img)
         self._draw_message()
 
         self.frame += 1

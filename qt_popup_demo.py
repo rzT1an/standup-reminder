@@ -119,12 +119,12 @@ class QtReminderPopup(QWidget):
 
         self.setWindowFlags(
             Qt.FramelessWindowHint
-            | Qt.WindowStaysOnTopHint
             | Qt.Tool
+            | Qt.WindowDoesNotAcceptFocus
             | Qt.NoDropShadowWindowHint
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setAttribute(Qt.WA_ShowWithoutActivating, False)
+        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
         self.setFixedSize(self.base_w, self.base_h)
 
         self.snooze_btn = PillButton(f"稍后 {self.snooze_minutes} 分钟", primary=False, parent=self)
@@ -156,9 +156,10 @@ class QtReminderPopup(QWidget):
         self.opacity_anim.setEasingCurve(QEasingCurve.OutCubic)
 
     def move_to_anchor(self, anchor=None):
-        screen = QGuiApplication.primaryScreen().availableGeometry()
+        qt_screen = QGuiApplication.primaryScreen()
+        screen = qt_screen.availableGeometry()
         if anchor:
-            anchor = normalize_anchor(anchor, screen)
+            anchor = normalize_anchor(anchor, qt_screen.geometry())
             x = int(anchor[0] - self.tail_x)
             y = int(anchor[1] - self._tail_tip_y())
         else:
@@ -172,8 +173,6 @@ class QtReminderPopup(QWidget):
         self.move_to_anchor(anchor)
         self.setWindowOpacity(0)
         self.show()
-        self.raise_()
-        self.activateWindow()
         self.opacity_anim.start()
 
     def _tail_tip_y(self):
@@ -268,14 +267,20 @@ class QtHint(QWidget):
     def __init__(self, text="腰挺直一点。"):
         super().__init__()
         self.text = text
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
+        self.setWindowFlags(
+            Qt.FramelessWindowHint
+            | Qt.Tool
+            | Qt.WindowDoesNotAcceptFocus
+        )
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
         self.setFixedSize(132, 36)
 
     def move_to_anchor(self, anchor=None):
-        screen = QGuiApplication.primaryScreen().availableGeometry()
+        qt_screen = QGuiApplication.primaryScreen()
+        screen = qt_screen.availableGeometry()
         if anchor:
-            anchor = normalize_anchor(anchor, screen)
+            anchor = normalize_anchor(anchor, qt_screen.geometry())
             x = int(anchor[0] - self.width() / 2)
             y = int(anchor[1] - self.height())
         else:
@@ -345,7 +350,9 @@ def normalize_anchor(anchor, screen):
             pw = user32.GetSystemMetrics(78)
             ph = user32.GetSystemMetrics(79)
             if pw > 0 and ph > 0:
-                if x > screen.right() + 8 or y > screen.bottom() + 8:
+                scale_x = screen.width() / pw
+                scale_y = screen.height() / ph
+                if abs(scale_x - 1.0) > 0.01 or abs(scale_y - 1.0) > 0.01:
                     x = screen.left() + (x - px) * (screen.width() / pw)
                     y = screen.top() + (y - py) * (screen.height() / ph)
         except Exception:
