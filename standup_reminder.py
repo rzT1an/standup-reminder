@@ -1119,28 +1119,46 @@ def show_popup(parent, snooze_count=0, max_snoozes=MAX_SNOOZE_COUNT,
     snooze_locked = snooze_count >= max_snoozes
     if USE_QT_POPUP:
         try:
-            anchor = None
-            anchor_provider = None
-            if anchor_window is not None:
-                provider = getattr(anchor_window, "_pet_anchor_provider", None)
-                if callable(provider):
-                    anchor_provider = lambda: provider("popup")
-                    anchor = anchor_provider()
-                else:
-                    def fallback_anchor():
-                        anchor_window.update_idletasks()
-                        return (
-                            anchor_window.winfo_rootx() + anchor_window.winfo_width() * 0.50,
-                            anchor_window.winfo_rooty() + anchor_window.winfo_height() * 0.52,
-                        )
-                    anchor_provider = fallback_anchor
-                    anchor = fallback_anchor()
-            action = run_qt_popup_process(
-                anchor,
-                snooze_enabled=not snooze_locked,
-                refresh_callback=parent.update,
-                anchor_provider=anchor_provider,
-            )
+            # [CLAUDE] exe 模式不能 spawn 子进程，直接 import
+            if getattr(sys, "frozen", False):
+                from qt_popup_demo import show_qt_popup
+                anchor = None
+                if anchor_window is not None:
+                    anchor_window.update_idletasks()
+                    anchor = (
+                        anchor_window.winfo_rootx() + anchor_window.winfo_width() * 0.50,
+                        anchor_window.winfo_rooty() - 8,
+                    )
+                action = show_qt_popup(
+                    minutes=INTERVAL_MINUTES,
+                    snooze_minutes=SNOOZE_MINUTES,
+                    snooze_enabled=not snooze_locked,
+                    anchor=anchor,
+                    timeout_seconds=_SOUND_TIMEOUT,
+                )
+            else:
+                anchor = None
+                anchor_provider = None
+                if anchor_window is not None:
+                    provider = getattr(anchor_window, "_pet_anchor_provider", None)
+                    if callable(provider):
+                        anchor_provider = lambda: provider("popup")
+                        anchor = anchor_provider()
+                    else:
+                        def fallback_anchor():
+                            anchor_window.update_idletasks()
+                            return (
+                                anchor_window.winfo_rootx() + anchor_window.winfo_width() * 0.50,
+                                anchor_window.winfo_rooty() + anchor_window.winfo_height() * 0.52,
+                            )
+                        anchor_provider = fallback_anchor
+                        anchor = fallback_anchor()
+                action = run_qt_popup_process(
+                    anchor,
+                    snooze_enabled=not snooze_locked,
+                    refresh_callback=parent.update,
+                    anchor_provider=anchor_provider,
+                )
             stop_sound()
             return action
         except Exception:
@@ -2640,6 +2658,9 @@ class DesktopPet:
         self.message_until = time.time() + seconds
 
     def _show_qt_hint(self, text, seconds=6):
+        # [CLAUDE] exe 模式下不能用子进程，直接回退到 Tkinter hint
+        if getattr(sys, "frozen", False):
+            return False
         try:
             if self._qt_hint_process and self._qt_hint_process.poll() is None:
                 self._qt_hint_process.terminate()
