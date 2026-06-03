@@ -36,6 +36,7 @@ LOCK_SCREEN_ON_SNOOZE_NUMBER = 3
 ENABLE_RED_HEAT = False
 USE_LAYERED_POPUP = False
 USE_QT_POPUP = True
+HIDE_PET_ON_FULLSCREEN = False
 APP_NAME = "站立提醒器"
 APP_DIR           = os.path.dirname(os.path.abspath(__file__))
 PET_ASSET_DIR    = os.path.join(APP_DIR, "assets", "pet")
@@ -2701,10 +2702,6 @@ class DesktopPet:
             self._pet_image_item = self.canvas.create_image(0, 0, image=photo, anchor="nw")
         else:
             self.canvas.itemconfigure(self._pet_image_item, image=photo)
-            try:
-                self.canvas.tag_lower(self._pet_image_item)
-            except tk.TclError:
-                pass
 
     def _redraw_now(self):
         try:
@@ -3011,7 +3008,7 @@ class DesktopPet:
         now = time.time()
 
         # [CLAUDE] 全屏检测：视频/游戏/PPT 时隐藏桌宠
-        fullscreen_active = is_fullscreen_active()
+        fullscreen_active = HIDE_PET_ON_FULLSCREEN and is_fullscreen_active()
         if fullscreen_active:
             self._fullscreen_hits += 1
         else:
