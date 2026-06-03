@@ -18,3 +18,8 @@ Thumbs.db
 *.lnk
 settings.json
 .claude/
+
+# PyInstaller
+build/
+dist/
+*.spec

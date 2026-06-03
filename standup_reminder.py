@@ -36,8 +36,12 @@ LOCK_SCREEN_ON_SNOOZE_NUMBER = 3
 ENABLE_RED_HEAT = False
 USE_LAYERED_POPUP = False
 USE_QT_POPUP = True
-APP_NAME          = "站立提醒器"
-APP_DIR           = os.path.dirname(__file__)
+APP_NAME = "站立提醒器"
+# [CLAUDE] 支持 PyInstaller 打包：exe 运行时从临时目录读资源
+if getattr(sys, "frozen", False):
+    APP_DIR = sys._MEIPASS
+else:
+    APP_DIR = os.path.dirname(os.path.abspath(__file__))
 PET_ASSET_DIR    = os.path.join(APP_DIR, "assets", "pet")
 SOUND_ASSET_DIR  = os.path.join(APP_DIR, "assets", "sounds")
 EFFECT_ASSET_DIR = os.path.join(APP_DIR, "assets", "effects")
