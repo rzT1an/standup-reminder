@@ -45,7 +45,11 @@ else:
 PET_ASSET_DIR    = os.path.join(APP_DIR, "assets", "pet")
 SOUND_ASSET_DIR  = os.path.join(APP_DIR, "assets", "sounds")
 EFFECT_ASSET_DIR = os.path.join(APP_DIR, "assets", "effects")
-SETTINGS_PATH    = os.path.join(APP_DIR, "settings.json")
+# [CLAUDE] exe 模式下持久化到 exe 同目录，而非临时文件夹
+if getattr(sys, "frozen", False):
+    SETTINGS_PATH = os.path.join(os.path.dirname(sys.executable), "settings.json")
+else:
+    SETTINGS_PATH = os.path.join(APP_DIR, "settings.json")
 DEFAULT_RINGTONE_PATH = os.path.join(SOUND_ASSET_DIR, "mixkit-guitar-notification-alert-2320.wav")
 DEFAULT_EFFECT_PATH = os.path.join(EFFECT_ASSET_DIR, "mixkit-lightning-whip-1508.wav")
 POKE_EFFECT_PATH = DEFAULT_EFFECT_PATH
